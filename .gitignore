@@ -27,3 +27,6 @@ dist-ssr
 *.sw?
 
 .config/
+
+# Uploads
+uploads/
