@@ -1,0 +1,19 @@
+/* Hero text animation: scale up and fade out */
+.hero-text-animate {
+  animation: heroTextScaleFade 1.5s cubic-bezier(0.4,0,0.2,1) forwards;
+}
+
+@keyframes heroTextScaleFade {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.5);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(2);
+  }
+} 

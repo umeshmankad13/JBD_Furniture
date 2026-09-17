@@ -1,0 +1,11 @@
+import React, { useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+
+export default function ResetPassword() {
+  const [params] = useSearchParams(); const [password, setPassword] = useState(''); const [confirm, setConfirm] = useState(''); const [message, setMessage] = useState(''); const [error, setError] = useState(''); const [loading, setLoading] = useState(false);
+  const submit = async (e: React.FormEvent) => { e.preventDefault(); if (password !== confirm) return setError('Passwords do not match'); setLoading(true); setError(''); try { const res = await fetch('/api/admin/reset-password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: params.get('token'), password }) }); const data = await res.json(); if (!res.ok) throw new Error(data.error); setMessage(data.message); } catch (err) { setError(err instanceof Error ? err.message : 'Unable to reset password'); } finally { setLoading(false); } };
+  return <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100"><Card className="w-full max-w-md shadow-xl"><CardContent className="p-8"><h1 className="text-2xl font-bold text-center mb-6 text-blue-900">Set new password</h1>{message ? <div className="rounded bg-green-100 p-3 text-center text-green-800">{message}<div className="mt-3"><Link to="/admin/login" className="text-sm text-blue-700 hover:underline">Sign in</Link></div></div> : <form onSubmit={submit} className="space-y-4"><Input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="New password (10+ characters)" autoComplete="new-password" minLength={10} required autoFocus /><Input type="password" value={confirm} onChange={e => setConfirm(e.target.value)} placeholder="Confirm new password" autoComplete="new-password" required />{error && <p className="text-sm text-red-700">{error}</p>}<Button className="w-full bg-blue-700" disabled={loading}>{loading ? 'Updating…' : 'Reset password'}</Button></form>}</CardContent></Card></div>;
+}

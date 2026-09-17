@@ -1,0 +1,32 @@
+.splash-cursor {
+  position: fixed;
+  pointer-events: none;
+  z-index: 9999;
+  width: 120px;
+  height: 120px;
+  left: 0;
+  top: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(56,189,248,0.25) 0%, rgba(59,130,246,0.18) 60%, rgba(59,130,246,0) 100%);
+  opacity: 0;
+  transform: scale(0.5);
+  transition: opacity 0.2s, transform 0.2s;
+}
+.splash-cursor.active {
+  animation: splash-cursor-ripple 0.6s cubic-bezier(0.4,0,0.2,1);
+  opacity: 1;
+}
+@keyframes splash-cursor-ripple {
+  0% {
+    opacity: 0.7;
+    transform: scale(0.5);
+  }
+  60% {
+    opacity: 0.5;
+    transform: scale(1.1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.6);
+  }
+} 

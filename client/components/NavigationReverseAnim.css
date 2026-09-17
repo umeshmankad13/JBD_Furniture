@@ -1,0 +1,14 @@
+.reverse-anim {
+  animation: reverse-gradient 0.5s cubic-bezier(0.4,0,0.2,1) reverse;
+}
+
+@keyframes reverse-gradient {
+  0% {
+    filter: hue-rotate(0deg) brightness(1);
+    transform: scale(1);
+  }
+  100% {
+    filter: hue-rotate(180deg) brightness(1.2);
+    transform: scale(1.08) skewX(-8deg);
+  }
+} 
