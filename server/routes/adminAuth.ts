@@ -1,4 +1,4 @@
-import crypto from 'crypto';
+﻿import crypto from 'crypto';
 import express from 'express';
 import jwt from 'jsonwebtoken';
 import mongoose from 'mongoose';
@@ -6,14 +6,11 @@ import nodemailer from 'nodemailer';
 
 const router = express.Router();
 
-const ADMIN_USERNAME = process.env.ADMIN_USERNAME;
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
-const JWT_SECRET = process.env.JWT_SECRET;
+const getEnv = (key: string) => process.env[key] || '';
 const JWT_EXPIRES_IN = '2d';
 
-const hasAuthConfiguration = () => Boolean(ADMIN_USERNAME && ADMIN_PASSWORD && JWT_SECRET);
-const hasMailConfiguration = () => Boolean(ADMIN_EMAIL && process.env.SMTP_SERVICE && process.env.SMTP_USER && process.env.SMTP_PASS);
+const hasAuthConfiguration = () => Boolean(getEnv('ADMIN_USERNAME') && getEnv('ADMIN_PASSWORD') && getEnv('JWT_SECRET'));
+const hasMailConfiguration = () => Boolean(getEnv('ADMIN_EMAIL') && getEnv('SMTP_SERVICE') && getEnv('SMTP_USER') && getEnv('SMTP_PASS'));
 const AdminCredential: mongoose.Model<{ username: string; passwordHash: string }> =
   (mongoose.models.AdminCredential as mongoose.Model<{ username: string; passwordHash: string }> | undefined) ||
   mongoose.model<{ username: string; passwordHash: string }>('AdminCredential', new mongoose.Schema({ username: { type: String, required: true, unique: true }, passwordHash: { type: String, required: true } }));
@@ -35,7 +32,10 @@ const passwordMatches = (password: string, stored: string) => new Promise<boolea
 // Login endpoint
 router.post('/login', async (req, res) => {
   const { username, password } = req.body;
-  if (!hasAuthConfiguration()) {
+  const ADMIN_USERNAME = getEnv('ADMIN_USERNAME');
+  const ADMIN_PASSWORD = getEnv('ADMIN_PASSWORD');
+  const JWT_SECRET = getEnv('JWT_SECRET');
+  if (!ADMIN_USERNAME || !ADMIN_PASSWORD || !JWT_SECRET) {
     return res.status(503).json({ success: false, error: 'Admin authentication is not configured' });
   }
   try {
@@ -43,12 +43,11 @@ router.post('/login', async (req, res) => {
     const matches = saved ? await passwordMatches(password, saved.passwordHash) : username === ADMIN_USERNAME && password === ADMIN_PASSWORD;
     if (matches) {
     const token = jwt.sign({ username }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
-    // Set both cookie and return token for localStorage
     res.cookie('admin_token', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 1000 * 60 * 60 * 24 * 2, // 2 days
+      maxAge: 1000 * 60 * 60 * 24 * 2,
     });
     return res.json({ success: true, token });
     }
@@ -60,11 +59,14 @@ router.post('/login', async (req, res) => {
 });
 
 router.post('/forgot-password', async (req, res) => {
+  const ADMIN_USERNAME = getEnv('ADMIN_USERNAME');
+  const ADMIN_EMAIL = getEnv('ADMIN_EMAIL');
+  const JWT_SECRET = getEnv('JWT_SECRET');
   const success = { success: true, message: 'If that administrator account exists, a reset link has been sent.' };
-  if (!hasAuthConfiguration() || !hasMailConfiguration()) return res.status(503).json({ success: false, error: 'Password reset email is not configured' });
+  if (!ADMIN_USERNAME || !ADMIN_EMAIL || !JWT_SECRET || !hasMailConfiguration()) return res.status(503).json({ success: false, error: 'Password reset email is not configured' });
   if (req.body.username !== ADMIN_USERNAME) return res.json(success);
   try {
-    const token = jwt.sign({ username: ADMIN_USERNAME, purpose: 'password-reset' }, JWT_SECRET!, { expiresIn: '20m' });
+    const token = jwt.sign({ username: ADMIN_USERNAME, purpose: 'password-reset' }, JWT_SECRET, { expiresIn: '20m' });
     const baseUrl = process.env.APP_URL || `${req.protocol}://${req.get('host')}`;
     const resetUrl = `${baseUrl}/admin/reset-password?token=${encodeURIComponent(token)}`;
     const transporter = nodemailer.createTransport({ service: process.env.SMTP_SERVICE, auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } });
@@ -78,6 +80,8 @@ router.post('/forgot-password', async (req, res) => {
 
 router.post('/reset-password', async (req, res) => {
   const { token, password } = req.body;
+  const ADMIN_USERNAME = getEnv('ADMIN_USERNAME');
+  const JWT_SECRET = getEnv('JWT_SECRET');
   if (!JWT_SECRET) return res.status(503).json({ success: false, error: 'Admin authentication is not configured' });
   if (typeof password !== 'string' || password.length < 10) return res.status(400).json({ success: false, error: 'Password must be at least 10 characters long' });
   try {
@@ -94,6 +98,9 @@ router.post('/reset-password', async (req, res) => {
 router.post('/change-password', async (req, res) => {
   const token = req.cookies.admin_token || req.headers.authorization?.split(' ')[1];
   const { currentPassword, newPassword } = req.body;
+  const ADMIN_USERNAME = getEnv('ADMIN_USERNAME');
+  const ADMIN_PASSWORD = getEnv('ADMIN_PASSWORD');
+  const JWT_SECRET = getEnv('JWT_SECRET');
   if (!token || !JWT_SECRET) return res.status(401).json({ success: false, error: 'Not authenticated' });
   if (typeof newPassword !== 'string' || newPassword.length < 10) return res.status(400).json({ success: false, error: 'New password must be at least 10 characters long' });
   try {
@@ -117,7 +124,8 @@ router.post('/logout', (req, res) => {
 
 // Check authentication status
 router.get('/check', (req, res) => {
-  if (!hasAuthConfiguration()) {
+  const JWT_SECRET = getEnv('JWT_SECRET');
+  if (!JWT_SECRET) {
     return res.status(503).json({ success: false, authenticated: false });
   }
   const token = req.cookies.admin_token || req.headers.authorization?.split(' ')[1];
@@ -134,7 +142,8 @@ router.get('/check', (req, res) => {
 
 // Middleware to protect admin routes
 export function requireAdminAuth(req, res, next) {
-  if (!hasAuthConfiguration()) {
+  const JWT_SECRET = getEnv('JWT_SECRET');
+  if (!JWT_SECRET) {
     return res.status(503).json({ success: false, error: 'Admin authentication is not configured' });
   }
   const token = req.cookies.admin_token || req.headers.authorization?.split(' ')[1];
@@ -148,4 +157,4 @@ export function requireAdminAuth(req, res, next) {
   }
 }
 
-export default router; 
+export default router;
